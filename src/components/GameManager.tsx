@@ -46,6 +46,10 @@ export const GameManager: React.FC<GameManagerProps> = ({
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastFailedOperation, setLastFailedOperation] = useState<{
+    type: 'initial' | 'choice' | 'custom-action' | 'custom-initial';
+    data?: string | Choice;
+  } | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
@@ -221,6 +225,7 @@ export const GameManager: React.FC<GameManagerProps> = ({
     }
 
     setError(null);
+    setLastFailedOperation(null);
     setImageError(null);
     setStreamingText('');
     setStreamingThinking('');
@@ -294,6 +299,7 @@ export const GameManager: React.FC<GameManagerProps> = ({
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to start new game';
       setError(errorMessage);
+      setLastFailedOperation({ type: 'initial' });
       setIsStreaming(false);
       setStreamingText('');
       setStreamingThinking('');
@@ -308,6 +314,7 @@ export const GameManager: React.FC<GameManagerProps> = ({
     }
 
     setError(null);
+    setLastFailedOperation(null);
     setImageError(null);
     setStreamingText('');
     setStreamingThinking('');
@@ -383,6 +390,7 @@ export const GameManager: React.FC<GameManagerProps> = ({
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to start custom game';
       setError(errorMessage);
+      setLastFailedOperation({ type: 'custom-initial', data: sceneDescription });
       setIsStreaming(false);
       setStreamingText('');
       setStreamingThinking('');
@@ -397,6 +405,7 @@ export const GameManager: React.FC<GameManagerProps> = ({
     }
 
     setError(null);
+    setLastFailedOperation(null);
     setImageError(null);
     setStreamingText('');
     setStreamingThinking('');
@@ -473,6 +482,7 @@ export const GameManager: React.FC<GameManagerProps> = ({
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to continue story';
       setError(errorMessage);
+      setLastFailedOperation({ type: 'choice', data: choice });
       setIsStreaming(false);
       setStreamingText('');
       setStreamingThinking('');
@@ -487,6 +497,7 @@ export const GameManager: React.FC<GameManagerProps> = ({
     }
 
     setError(null);
+    setLastFailedOperation(null);
     setImageError(null);
     setStreamingText('');
     setStreamingThinking('');
@@ -576,6 +587,7 @@ export const GameManager: React.FC<GameManagerProps> = ({
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to continue custom story';
       setError(errorMessage);
+      setLastFailedOperation({ type: 'custom-action', data: actionText });
       setIsStreaming(false);
       setStreamingText('');
       setStreamingThinking('');
@@ -584,14 +596,34 @@ export const GameManager: React.FC<GameManagerProps> = ({
   }, [gameState, aiConfig, onConfigurationNeeded, generateImageForStory, extractNarrativeText, samplerSettings]);
 
   const handleRetry = useCallback(() => {
-    if (gameState) {
-      // If we have a game state, check if we should retry the last choice or regenerate current story
+    // Use the last failed operation to determine what to retry
+    if (lastFailedOperation) {
+      switch (lastFailedOperation.type) {
+        case 'initial':
+          startNewGame();
+          break;
+        case 'custom-initial':
+          if (typeof lastFailedOperation.data === 'string') {
+            startCustomGame(lastFailedOperation.data);
+          }
+          break;
+        case 'choice':
+          if (lastFailedOperation.data && typeof lastFailedOperation.data === 'object') {
+            handleChoiceSelect(lastFailedOperation.data as Choice);
+          }
+          break;
+        case 'custom-action':
+          if (typeof lastFailedOperation.data === 'string') {
+            handleCustomActionSubmit(lastFailedOperation.data);
+          }
+          break;
+      }
+    } else if (gameState) {
+      // Fallback to old logic if no failed operation is tracked
       const lastChoice = gameState.choiceHistory[gameState.choiceHistory.length - 1];
       if (lastChoice) {
-        // Retry the last choice selection
         handleChoiceSelect(lastChoice);
       } else {
-        // No choices made yet, retry initial story generation
         if (gameState.gameMode === 'custom' && gameState.customScene) {
           startCustomGame(gameState.customScene);
         } else {
@@ -606,7 +638,7 @@ export const GameManager: React.FC<GameManagerProps> = ({
         startNewGame();
       }
     }
-  }, [gameState, handleChoiceSelect, startNewGame, startCustomGame, gameMode, customScene]);
+  }, [lastFailedOperation, gameState, handleChoiceSelect, startNewGame, startCustomGame, handleCustomActionSubmit, gameMode, customScene]);
 
   const handleRegenerate = useCallback(async () => {
     if (!gameState || !aiConfig) {
