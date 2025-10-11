@@ -12,7 +12,7 @@ Image generation is done by either openai or nano-gpt. I was unable to test open
 
 If anyone wants to take this project way further than I did, feel free. I know there are things like SillyTavern but this is just built for CYOA. One of my favorite kinds of games, and with AI it's much easier to make them.
 
-If you want to try it out yourself. Try it on github pages here: (add link later)
+If you want to try it out yourself. Try it on github pages [HERE](https://rocketdouble.github.io/ai-cyoa-game/)
 
 Thank you for reading this. I hope you enjoy your own CYOA. Here is the README the ai wrote. 
 
