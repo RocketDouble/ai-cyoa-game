@@ -419,7 +419,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Your OpenAI-compatible API key. This is stored locally and never sent to our servers.
+            Your OpenAI-compatible API key. For local LLMs, use any 8+ character string like "12345678". This is stored locally and never sent to our servers.
           </p>
         </div>
 
@@ -437,7 +437,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            The base URL for your OpenAI-compatible API endpoint.
+            The base URL for your OpenAI-compatible API endpoint. For local LLMs with CORS enabled use something like http://127.0.0.1:1234/v1
           </p>
         </div>
 

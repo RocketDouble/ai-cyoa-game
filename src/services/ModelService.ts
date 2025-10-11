@@ -186,7 +186,7 @@ export class ModelService {
     } catch (error) {
       if (error instanceof TypeError) {
         throw new ModelServiceError(
-          'Network error: Check your internet connection and API endpoint',
+          'Network error: Check your internet connection and API endpoint, If running local ensure CORS is enabled.',
           'NETWORK_ERROR'
         );
       }
@@ -252,7 +252,7 @@ export class ModelService {
   private static parseModelsResponse(data: unknown): ModelInfo[] {
     try {
       if (!data || typeof data !== 'object' || !('data' in data) || !Array.isArray((data as { data: unknown }).data)) {
-        throw new Error('Invalid response format: expected data array');
+        throw new Error('Invalid response format: expected data array. Are you using /v1 at the end of the url?');
       }
 
       const responseData = (data as { data: unknown[] }).data;

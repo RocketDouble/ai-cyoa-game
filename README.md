@@ -132,11 +132,31 @@ npm run dev
 ```
 
 ### Configuration
+
+#### Using Cloud AI Services
 1. Open the game in your browser
 2. Click "Settings" to configure your AI provider
 3. Enter your API credentials and model preferences
 4. Customize sampler settings and features as desired
 5. Start your adventure!
+
+#### Using Local LLMs (LM Studio)
+You can use your own local LLM instead of cloud services:
+
+1. **Install LM Studio**: Download from [lmstudio.ai](https://lmstudio.ai)
+2. **Download a Model**: Choose any compatible model (e.g., Llama, Mistral, etc.)
+3. **Enable CORS**: In LM Studio's server settings, enable CORS to allow web requests
+4. **Start Local Server**: Start the local server (usually runs on `http://127.0.0.1:1234`)
+5. **Configure Game**: 
+   - Set Base URL to: `http://127.0.0.1:1234/v1`
+   - Set API Key to any 8+ character string (e.g., `12345678` - not used by local server)
+   - Select your loaded model
+
+**Benefits of Local LLMs:**
+- Complete privacy - no data leaves your machine
+- No API costs or rate limits
+- Works offline
+- Full control over model selection
 
 ## 📁 Project Structure
 
