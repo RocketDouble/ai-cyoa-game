@@ -599,10 +599,14 @@ export const GameManager: React.FC<GameManagerProps> = ({
         }
       }
     } else {
-      // No game state, retry starting a new game
-      startNewGame();
+      // No game state, check props to determine what type of game to retry
+      if (gameMode === 'custom' && customScene) {
+        startCustomGame(customScene);
+      } else {
+        startNewGame();
+      }
     }
-  }, [gameState, handleChoiceSelect, startNewGame, startCustomGame]);
+  }, [gameState, handleChoiceSelect, startNewGame, startCustomGame, gameMode, customScene]);
 
   const handleRegenerate = useCallback(async () => {
     if (!gameState || !aiConfig) {
@@ -763,7 +767,7 @@ export const GameManager: React.FC<GameManagerProps> = ({
     } else if (gameMode === 'standard' && !gameState && isInitialized && !gameToResume) {
       startNewGame();
     }
-  }, [gameMode, customScene, gameState, isInitialized, gameToResume]);
+  }, [gameMode, customScene, gameState, isInitialized, gameToResume, startCustomGame, startNewGame]);
 
   // Show configuration needed state
   if (!aiConfig) {
