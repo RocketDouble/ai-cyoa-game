@@ -231,8 +231,8 @@ export class SaveManager {
         errors.push('Custom mode game missing custom scene description');
       } else if (gameState.customScene.trim().length < 20) {
         errors.push('Custom scene description too short (minimum 20 characters)');
-      } else if (gameState.customScene.trim().length > 300) {
-        errors.push('Custom scene description too long (maximum 300 characters)');
+      } else if (gameState.customScene.trim().length > 500) {
+        errors.push('Custom scene description too long (maximum 500 characters)');
       }
     }
 
