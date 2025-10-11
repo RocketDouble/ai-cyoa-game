@@ -799,7 +799,8 @@ export const GameManager: React.FC<GameManagerProps> = ({
     } else if (gameMode === 'standard' && !gameState && isInitialized && !gameToResume) {
       startNewGame();
     }
-  }, [gameMode, customScene, gameState, isInitialized, gameToResume, startCustomGame, startNewGame]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameMode, customScene, gameState, isInitialized, gameToResume]);
 
   // Show configuration needed state
   if (!aiConfig) {
