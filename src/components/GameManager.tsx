@@ -3,6 +3,7 @@ import { StoryDisplay } from './StoryDisplay';
 import { ChoicePanel } from './ChoicePanel';
 import { CustomActionPanel } from './CustomActionPanel';
 import { SamplerSettings as SamplerSettingsModal } from './SamplerSettings';
+import { RollbackConfirmationDialog } from './RollbackConfirmationDialog';
 import { StoryService } from '../services/StoryService';
 import { CustomStoryService } from '../services/CustomStoryService';
 import { ImageService } from '../services/ImageService';
@@ -66,6 +67,11 @@ export const GameManager: React.FC<GameManagerProps> = ({
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingThinking, setStreamingThinking] = useState<string>('');
   const [currentThinking, setCurrentThinking] = useState<string>('');
+
+  // Rollback state management
+  const [isRollbackConfirmationOpen, setIsRollbackConfirmationOpen] = useState(false);
+  const [targetSegmentIndex, setTargetSegmentIndex] = useState<number | null>(null);
+  const [rollbackError, setRollbackError] = useState<string | null>(null);
 
   // Update sampler settings when aiConfig changes
   useEffect(() => {
@@ -792,6 +798,221 @@ export const GameManager: React.FC<GameManagerProps> = ({
     }
   }, [onNewGame, onBackToLauncher]);
 
+  // Enhanced rollback validation
+  const validateRollbackOperation = useCallback((segmentIndex: number, gameState: GameState) => {
+    const errors: string[] = [];
+
+    // Basic bounds checking
+    if (segmentIndex < 0) {
+      errors.push('Segment index cannot be negative');
+    }
+
+    if (segmentIndex >= gameState.storyHistory.length) {
+      errors.push('Segment index exceeds story history length');
+    }
+
+    // State validation
+    if (!gameState.storyHistory || gameState.storyHistory.length === 0) {
+      errors.push('No story history available for rollback');
+    }
+
+    if (!gameState.choiceHistory) {
+      errors.push('Choice history is missing');
+    }
+
+    // Data integrity checks
+    if (gameState.storyHistory && gameState.choiceHistory) {
+      // For rollback to work, we need at least segmentIndex choices
+      // (since we'll keep segmentIndex choices and delete the rest)
+      const expectedChoiceCount = segmentIndex;
+      if (gameState.choiceHistory.length < expectedChoiceCount) {
+        errors.push('Insufficient choice history for rollback operation');
+      }
+
+      // Validate that the target segment exists and has required properties
+      const targetSegment = gameState.storyHistory[segmentIndex];
+      if (!targetSegment) {
+        errors.push('Target segment does not exist');
+      } else {
+        if (!targetSegment.id) {
+          errors.push('Target segment is missing required ID');
+        }
+        if (!targetSegment.text) {
+          errors.push('Target segment is missing story text');
+        }
+        if (!targetSegment.sceneDescription) {
+          errors.push('Target segment is missing scene description');
+        }
+      }
+    }
+
+    // Game state integrity checks
+    if (!gameState.gameId) {
+      errors.push('Game state is missing game ID');
+    }
+
+    if (!gameState.currentStory) {
+      errors.push('Game state is missing current story');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  }, []);
+
+  // Rollback calculation logic with enhanced validation
+  const calculateRollbackOperation = useCallback((segmentIndex: number, gameState: GameState) => {
+    // Perform comprehensive validation
+    const validation = validateRollbackOperation(segmentIndex, gameState);
+    if (!validation.isValid) {
+      throw new Error(`Rollback validation failed: ${validation.errors.join(', ')}`);
+    }
+
+    // Get the target segment that will become the new current story
+    const targetSegment = gameState.storyHistory[segmentIndex];
+    if (!targetSegment) {
+      throw new Error('Target segment does not exist');
+    }
+
+    // Calculate what will be deleted
+    // Everything after the target segment index will be deleted from history, plus the current segment
+    const segmentsToDelete = (gameState.storyHistory.length - segmentIndex - 1) + 1; // +1 for current segment
+    const choicesToDelete = gameState.choiceHistory.length - segmentIndex;
+
+    // Additional safety checks
+    if (segmentsToDelete < 0) {
+      throw new Error('Invalid rollback: target segment is beyond history');
+    }
+
+    if (choicesToDelete < 0) {
+      throw new Error('Data integrity error: insufficient choice history for rollback');
+    }
+
+    // Create new game state with truncated history
+    // Keep everything up to (but not including) the target segment
+    const newStoryHistory = gameState.storyHistory.slice(0, segmentIndex);
+    const newChoiceHistory = gameState.choiceHistory.slice(0, segmentIndex);
+
+    // The target segment becomes the new current story
+    const newCurrentStory = targetSegment;
+
+    const newGameState: GameState = {
+      ...gameState,
+      currentStory: newCurrentStory,
+      storyHistory: newStoryHistory,
+      choiceHistory: newChoiceHistory,
+      lastUpdated: new Date()
+    };
+
+    // Final validation of the new game state
+    if (!newGameState.gameId || !newGameState.currentStory) {
+      throw new Error('Failed to create valid rollback state: missing required properties');
+    }
+
+    return {
+      targetSegmentIndex: segmentIndex,
+      segmentsToDelete,
+      choicesToDelete,
+      newGameState
+    };
+  }, [validateRollbackOperation]);
+
+  // Rollback handlers
+  const handleRollbackRequest = useCallback((segmentIndex: number) => {
+    // Clear any previous rollback errors
+    setRollbackError(null);
+
+    // Validate the rollback request before opening confirmation dialog
+    if (!gameState) {
+      setRollbackError('No game state available for rollback');
+      return;
+    }
+
+    const validation = validateRollbackOperation(segmentIndex, gameState);
+    if (!validation.isValid) {
+      setRollbackError(`Cannot rollback: ${validation.errors.join(', ')}`);
+      return;
+    }
+
+    setTargetSegmentIndex(segmentIndex);
+    setIsRollbackConfirmationOpen(true);
+  }, [gameState, validateRollbackOperation]);
+
+  const handleRollbackConfirm = useCallback(async () => {
+    if (targetSegmentIndex !== null && gameState) {
+      try {
+        // Clear any previous rollback errors
+        setRollbackError(null);
+
+        // Perform final validation before rollback
+        const validation = validateRollbackOperation(targetSegmentIndex, gameState);
+        if (!validation.isValid) {
+          throw new Error(`Rollback validation failed: ${validation.errors.join(', ')}`);
+        }
+
+        // Calculate rollback operation
+        const rollbackOperation = calculateRollbackOperation(targetSegmentIndex, gameState);
+
+        // Validate the rollback operation result
+        if (!rollbackOperation.newGameState) {
+          throw new Error('Failed to calculate valid rollback state');
+        }
+
+        // Additional safety check: ensure we're not in an invalid state
+        if (isLoading || isStreaming) {
+          throw new Error('Cannot perform rollback while other operations are in progress');
+        }
+
+        // Update game state with truncated history
+        setGameState(rollbackOperation.newGameState);
+
+        // Clear any loading or error states appropriately
+        setError(null);
+        setImageError(null);
+        setLastFailedOperation(null);
+        setIsLoading(false);
+        setIsStreaming(false);
+        setIsGeneratingImage(false);
+        setStreamingText('');
+        setStreamingThinking('');
+
+        // Trigger immediate save after rollback with error handling
+        try {
+          await SaveManager.performImmediateSave(rollbackOperation.newGameState);
+        } catch (saveErr) {
+          console.error('Failed to save after rollback:', saveErr);
+          // Don't fail the rollback operation due to save failure, but warn the user
+          setRollbackError('Rollback completed but failed to save. Your progress may not be preserved.');
+        }
+
+        // Close confirmation dialog
+        setIsRollbackConfirmationOpen(false);
+        setTargetSegmentIndex(null);
+
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to perform rollback';
+        setRollbackError(errorMessage);
+        console.error('Rollback failed:', err);
+
+        // Don't close dialog on error so user can see the error and try again or cancel
+        // setIsRollbackConfirmationOpen(false);
+        // setTargetSegmentIndex(null);
+      }
+    } else {
+      // Handle invalid state
+      const errorMessage = !gameState ? 'No game state available' : 'No target segment selected';
+      setRollbackError(errorMessage);
+      console.error('Rollback failed: Invalid state -', { targetSegmentIndex, hasGameState: !!gameState });
+    }
+  }, [targetSegmentIndex, gameState, calculateRollbackOperation, validateRollbackOperation, isLoading, isStreaming]);
+
+  const handleRollbackCancel = useCallback(() => {
+    setIsRollbackConfirmationOpen(false);
+    setTargetSegmentIndex(null);
+    setRollbackError(null); // Clear rollback errors when canceling
+  }, []);
+
   // Handle custom game initialization when props are provided
   useEffect(() => {
     if (gameMode === 'custom' && customScene && !gameState && isInitialized && !gameToResume) {
@@ -925,7 +1146,40 @@ export const GameManager: React.FC<GameManagerProps> = ({
         enableImageGeneration={aiConfig?.enableImageGeneration ?? true}
         thinkingContent={currentThinking}
         streamingThinking={streamingThinking}
+        onRollback={handleRollbackRequest}
       />
+
+      {/* Rollback Error Display */}
+      {rollbackError && !isRollbackConfirmationOpen && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="ml-3 flex-1">
+              <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
+                Rollback Failed
+              </h3>
+              <p className="mt-1 text-sm text-red-700 dark:text-red-300">
+                {rollbackError}
+              </p>
+            </div>
+            <div className="ml-auto pl-3">
+              <button
+                onClick={() => setRollbackError(null)}
+                className="inline-flex text-red-400 hover:text-red-600 dark:text-red-500 dark:hover:text-red-300 transition-colors"
+                aria-label="Dismiss error"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Choice Panel or Custom Action Panel based on game mode */}
       {gameState && !error && (
@@ -944,6 +1198,19 @@ export const GameManager: React.FC<GameManagerProps> = ({
             onChoiceSelect={handleChoiceSelect}
           />
         )
+      )}
+
+      {/* Rollback Confirmation Dialog */}
+      {gameState && (
+        <RollbackConfirmationDialog
+          isOpen={isRollbackConfirmationOpen}
+          onClose={handleRollbackCancel}
+          onConfirm={handleRollbackConfirm}
+          segmentIndex={targetSegmentIndex || 0}
+          segmentCount={gameState.storyHistory.length}
+          choiceCount={gameState.choiceHistory.length}
+          error={rollbackError}
+        />
       )}
     </div>
   );

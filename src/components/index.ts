@@ -30,3 +30,6 @@ export { ThinkingDisplay } from './ThinkingDisplay';
 
 // Model detection utilities
 export { ModelDetection } from '../utils/ModelDetection';
+
+// Rollback confirmation dialog for segment rollback functionality
+export { RollbackConfirmationDialog } from './RollbackConfirmationDialog';

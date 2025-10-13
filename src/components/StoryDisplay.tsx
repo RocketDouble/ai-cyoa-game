@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ImageDisplay } from './ImageDisplay';
 import { SamplerSettings } from './SamplerSettings';
 import { ThinkingDisplay } from './ThinkingDisplay';
+
 import { MarkdownParser } from '../utils/MarkdownParser';
 import type { StorySegment, SamplerSettings as SamplerSettingsType } from '../types';
 
@@ -23,6 +24,7 @@ interface StoryDisplayProps {
   canRegenerate?: boolean;
   thinkingContent?: string;
   streamingThinking?: string;
+  onRollback?: (segmentIndex: number) => void;
 }
 
 /**
@@ -52,16 +54,24 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({
   enableImageGeneration = true,
   canRegenerate = false,
   thinkingContent = '',
-  streamingThinking = ''
+  streamingThinking = '',
+  onRollback
 }) => {
   const [showHistory, setShowHistory] = useState(false);
   const [expandedSegments, setExpandedSegments] = useState<Set<string>>(new Set());
   const [showSamplerSettings, setShowSamplerSettings] = useState(false);
 
+
   const defaultSamplerSettings: SamplerSettingsType = {
     temperature: 0.7,
     minP: 0.05,
     repetitionPenalty: 1.1
+  };
+
+  const handleRollbackRequest = (segmentIndex: number) => {
+    if (onRollback) {
+      onRollback(segmentIndex);
+    }
   };
 
   // Loading state - only show spinner if NOT streaming
@@ -190,6 +200,8 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({
         />
       )}
 
+
+
       {/* Story History */}
       {showHistory && storyHistory.length > 0 && (
         <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-4 max-h-96 overflow-y-auto">
@@ -204,7 +216,22 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({
 
               return (
                 <div key={segment.id} className="border-l-2 border-gray-300 dark:border-gray-600 pl-4">
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Segment {index + 1}</div>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Segment {index + 1}</div>
+                    {/* Only show rollback button if this is not the last segment (current segment) and onRollback is provided */}
+                    {index < storyHistory.length - 1 && onRollback && (
+                      <button
+                        onClick={() => handleRollbackRequest(index)}
+                        className="inline-flex items-center gap-1 px-2 py-1 text-xs text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-700 rounded hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors"
+                        title={`Rollback to this segment (will delete ${storyHistory.length - 1 - index} segments)`}
+                      >
+                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                        </svg>
+                        Rollback
+                      </button>
+                    )}
+                  </div>
                   <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
                     <MarkdownParser text={displayText} />
                   </div>
