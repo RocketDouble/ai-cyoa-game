@@ -1,5 +1,6 @@
 import type { AIConfig } from '../types';
 import { ThinkingParser } from '../utils/ThinkingParser';
+import { TokenEstimator } from '../utils/TokenEstimator';
 
 /**
  * Error types for AI service operations
@@ -119,7 +120,7 @@ export class AIService {
       maxTokens?: number;
       onThinkingChunk?: (text: string) => void;
     } = {}
-  ): Promise<{ response: string; thinkingContent: string; ttfs?: number }> {
+  ): Promise<{ response: string; thinkingContent: string; ttfs?: number; tokenUsage?: import('../types').TokenUsage }> {
     const isAnthropic = this.isAnthropicAPI(config.baseUrl);
     const endpoint = isAnthropic ? '/v1/messages' : '/v1/chat/completions';
     const url = this.transformUrlForProxy(config.baseUrl, endpoint);
@@ -175,6 +176,7 @@ export class AIService {
       const decoder = new TextDecoder();
       let fullText = '';
       let buffer = '';
+      let tokenUsage: import('../types').TokenUsage | undefined;
 
       // Initialize thinking processor for handling thinking tags in streaming
       const thinkingProcessor = ThinkingParser.createStreamingProcessor();
@@ -206,11 +208,34 @@ export class AIService {
                 if (data.type === 'content_block_delta' && data.delta?.text) {
                   rawChunk = data.delta.text;
                 }
+                // Extract usage data from Anthropic message_delta or message_stop events
+                if ((data.type === 'message_delta' || data.type === 'message_stop') && data.usage) {
+                  tokenUsage = {
+                    inputTokens: data.usage.input_tokens || 0,
+                    outputTokens: data.usage.output_tokens || 0
+                  };
+                }
               } else {
                 // Handle OpenAI format
                 const content = data.choices?.[0]?.delta?.content;
                 if (content) {
                   rawChunk = content;
+                }
+                // Extract usage data from OpenAI streaming response
+                // This can appear in the final chunk or in a separate usage chunk
+                if (data.usage) {
+                  tokenUsage = {
+                    inputTokens: data.usage.prompt_tokens || 0,
+                    outputTokens: data.usage.completion_tokens || 0
+                  };
+                }
+                // Some OpenAI-compatible APIs send usage in the choice object
+                if (data.choices?.[0]?.usage) {
+                  const choiceUsage = data.choices[0].usage;
+                  tokenUsage = {
+                    inputTokens: choiceUsage.prompt_tokens || 0,
+                    outputTokens: choiceUsage.completion_tokens || 0
+                  };
                 }
               }
 
@@ -248,10 +273,16 @@ export class AIService {
       // Calculate TTFS
       const ttfs = firstTokenTime !== undefined ? firstTokenTime - startTime : undefined;
 
+      // If no token usage was provided by the API, estimate it
+      if (!tokenUsage && fullText) {
+        tokenUsage = TokenEstimator.createEstimatedUsage(messages, fullText);
+      }
+
       return { 
         response: fullText, 
         thinkingContent,
-        ttfs
+        ttfs,
+        tokenUsage
       };
     } catch (error) {
       if (error instanceof AIServiceError) {
@@ -284,7 +315,7 @@ export class AIService {
       maxTokens?: number;
       stream?: boolean;
     } = {}
-  ): Promise<string> {
+  ): Promise<{ response: string; tokenUsage?: import('../types').TokenUsage }> {
     const isAnthropic = this.isAnthropicAPI(config.baseUrl);
     const endpoint = isAnthropic ? '/v1/messages' : '/v1/chat/completions';
     const url = this.transformUrlForProxy(config.baseUrl, endpoint);
@@ -364,12 +395,15 @@ export class AIService {
         throw new AIServiceError(errorMessage, 'API_ERROR');
       }
       
-      const rawResult = this.parseChatCompletionResponse(data, isAnthropic);
+      const { response: rawResult, tokenUsage: apiTokenUsage } = this.parseChatCompletionResponse(data, isAnthropic);
       
       // Parse thinking content from non-streaming response
       const { cleanedResponse } = ThinkingParser.parseThinkingResponse(rawResult);
       
-      return cleanedResponse;
+      // If no token usage was provided by the API, estimate it
+      const tokenUsage = apiTokenUsage || TokenEstimator.createEstimatedUsage(messages, cleanedResponse);
+      
+      return { response: cleanedResponse, tokenUsage };
     } catch (error) {
       if (error instanceof AIServiceError) {
         throw error;
@@ -409,7 +443,7 @@ export class AIService {
       stream?: boolean;
       maxRetries?: number;
     } = {}
-  ): Promise<string> {
+  ): Promise<{ response: string; tokenUsage?: import('../types').TokenUsage }> {
     const maxRetries = options.maxRetries ?? this.MAX_RETRIES;
     let lastError: AIServiceError;
 
@@ -517,7 +551,7 @@ export class AIService {
   /**
    * Parse the chat completion response from the API
    */
-  private static parseChatCompletionResponse(data: unknown, isAnthropic: boolean = false): string {
+  private static parseChatCompletionResponse(data: unknown, isAnthropic: boolean = false): { response: string; tokenUsage?: import('../types').TokenUsage } {
     try {
       // Handle Anthropic format
       if (isAnthropic) {
@@ -525,7 +559,8 @@ export class AIService {
           throw new Error('Invalid Anthropic response format: expected content array');
         }
 
-        const contentBlocks = (data as { content: unknown[] }).content;
+        const anthropicData = data as { content: unknown[]; usage?: { input_tokens?: number; output_tokens?: number } };
+        const contentBlocks = anthropicData.content;
         
         if (contentBlocks.length === 0) {
           throw new Error('No content blocks returned from Anthropic');
@@ -543,7 +578,13 @@ export class AIService {
           throw new Error('No text content found in Anthropic response');
         }
 
-        return fullText.trim();
+        // Extract token usage
+        const tokenUsage = anthropicData.usage ? {
+          inputTokens: anthropicData.usage.input_tokens || 0,
+          outputTokens: anthropicData.usage.output_tokens || 0
+        } : undefined;
+
+        return { response: fullText.trim(), tokenUsage };
       }
 
       // Handle OpenAI format
@@ -557,12 +598,12 @@ export class AIService {
         
         // Check if this might be a direct text response (some thinking models might return this)
         if (data && typeof data === 'object' && 'content' in data && typeof (data as { content: unknown }).content === 'string') {
-          return (data as { content: string }).content.trim();
+          return { response: (data as { content: string }).content.trim() };
         }
         
         // Check if the response is just a string (some APIs might return this)
         if (typeof data === 'string') {
-          return data.trim();
+          return { response: data.trim() };
         }
         
         // Check if it's a malformed OpenAI response with different structure
@@ -570,14 +611,15 @@ export class AIService {
           // Try to find any text content in the response
           const possibleContent = this.extractTextFromUnknownFormat(data);
           if (possibleContent) {
-            return possibleContent.trim();
+            return { response: possibleContent.trim() };
           }
         }
         
         throw new Error(`Invalid response format: expected choices array. Got: ${typeof data}`);
       }
 
-      const responseData = (data as { choices: unknown[] }).choices;
+      const openAIData = data as { choices: unknown[]; usage?: { prompt_tokens?: number; completion_tokens?: number } };
+      const responseData = openAIData.choices;
       
       if (responseData.length === 0) {
         throw new Error('No choices returned from AI service');
@@ -598,7 +640,13 @@ export class AIService {
         throw new Error('Invalid content format: expected string');
       }
 
-      return content.trim();
+      // Extract token usage
+      const tokenUsage = openAIData.usage ? {
+        inputTokens: openAIData.usage.prompt_tokens || 0,
+        outputTokens: openAIData.usage.completion_tokens || 0
+      } : undefined;
+
+      return { response: content.trim(), tokenUsage };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown parsing error';
       throw new AIServiceError(

@@ -13,6 +13,11 @@ export interface GameState {
   customScene?: string;
 }
 
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+}
+
 export interface StorySegment {
   id: string;
   text: string;
@@ -21,6 +26,7 @@ export interface StorySegment {
   sceneDescription: string;
   thinkingContent?: string; // AI's thinking process for this segment
   ttfs?: number; // Time to First Token in milliseconds
+  tokenUsage?: TokenUsage; // Token usage for this segment
 }
 
 export interface Choice {

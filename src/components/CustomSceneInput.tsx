@@ -189,9 +189,9 @@ Keep it SHORT it a SIMPLE scene, NO CHARACTER ACTIONS.`;
           maxTokens: 2048
         });
 
-        if (response && response.trim()) {
+        if (response && response.response.trim()) {
           // Parse thinking content from the response
-          const { thinkingContent: parsedThinking, cleanedResponse } = ThinkingParser.parseThinkingResponse(response);
+          const { thinkingContent: parsedThinking, cleanedResponse } = ThinkingParser.parseThinkingResponse(response.response);
 
           if (parsedThinking) {
             setThinkingContent(parsedThinking);

@@ -254,7 +254,7 @@ Format your response as a single paragraph image prompt suitable for DALL-E or s
     ];
 
     try {
-      const response = await AIService.chatCompletionWithRetry(config, messages, {
+      const { response } = await AIService.chatCompletionWithRetry(config, messages, {
         temperature: 0.8,
         maxTokens: 300
       });
@@ -287,7 +287,7 @@ Format your response as a single paragraph image prompt suitable for DALL-E or s
     ];
 
     try {
-      const response = await AIService.chatCompletionWithRetry(config, messages, {
+      const { response } = await AIService.chatCompletionWithRetry(config, messages, {
         temperature: 0.8,
         maxTokens: 250
       });

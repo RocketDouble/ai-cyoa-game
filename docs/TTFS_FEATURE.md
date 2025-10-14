@@ -1,63 +1,102 @@
-# Time to First Token (TTFS) Feature
+# TTFS and Token Usage Metrics
 
 ## Overview
 
-The TTFS (Time to First Token) feature measures the time it takes from sending a prompt to the AI service until receiving the first token of the response. This metric is crucial for understanding the responsiveness of your AI model and can help with performance optimization.
+This feature provides comprehensive metrics for AI interactions:
+
+1. **TTFS (Time to First Token)**: Measures the time from sending a prompt until receiving the first token of the response
+2. **Token Usage**: Tracks input and output tokens for each AI request
+
+These metrics are crucial for understanding AI model performance, cost optimization, and user experience.
 
 ## How It Works
 
-1. **Measurement**: When a streaming AI request is made, the system records the timestamp when the request is sent and when the first content token is received.
+### TTFS Measurement
+1. **Timing**: When a streaming AI request is made, the system records timestamps when the request is sent and when the first content token is received
+2. **Storage**: TTFS measurement (in milliseconds) is stored in the `StorySegment` object as the `ttfs` property
+3. **Display**: TTFS is shown with color-coded performance indicators
 
-2. **Storage**: The TTFS measurement (in milliseconds) is stored in the `StorySegment` object as the `ttfs` property.
-
-3. **Display**: TTFS is displayed in the story history and current story segment with color-coded performance indicators.
+### Token Usage Tracking
+1. **Collection**: Token usage data is extracted from AI API responses (both streaming and non-streaming)
+2. **Storage**: Input and output token counts are stored in the `StorySegment` object as the `tokenUsage` property
+3. **Display**: Token usage is shown in the format "5673 → 200" (input → output tokens)
 
 ## Performance Indicators
 
-The TTFS display uses color coding to indicate performance:
-
+### TTFS Color Coding
 - **Green (< 1s)**: Excellent performance
 - **Blue (1-3s)**: Good performance  
 - **Yellow (3-5s)**: Fair performance
 - **Red (> 5s)**: Slow performance
 
-## Where TTFS is Displayed
+### Token Usage Color Coding
+- **Green (< 100 tokens)**: Light usage
+- **Blue (100-500 tokens)**: Moderate usage
+- **Yellow (500-1000 tokens)**: Heavy usage
+- **Purple (> 1000 tokens)**: Very heavy usage
+
+## Where Metrics are Displayed
 
 ### Story History
-When you expand the story history, each segment shows its TTFS measurement next to the segment number.
+When you expand the story history, each segment shows:
+- TTFS measurement next to the segment number
+- Token usage in the format "Tokens: 5673 → 200"
 
 ### Current Story
-The current story segment displays its TTFS in the scene information area at the bottom of the story text.
+The current story segment displays both metrics in the scene information area at the bottom of the story text.
 
 ## Technical Implementation
 
 ### Types
 ```typescript
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+}
+
 export interface StorySegment {
   // ... other properties
   ttfs?: number; // Time to First Token in milliseconds
+  tokenUsage?: TokenUsage; // Token usage for this segment
 }
 ```
 
 ### AI Service
-The `AIService.chatCompletionStream` method measures TTFS by:
-1. Recording start time before sending the request
-2. Recording first token time when the first content chunk is received
-3. Calculating the difference and returning it with the response
+The `AIService` methods now return comprehensive metrics:
+- **TTFS Measurement**: Records timing from request start to first token
+- **Token Usage Extraction**: Parses token usage from API responses (OpenAI and Anthropic formats)
+- **Return Format**: `{ response: string; thinkingContent: string; ttfs?: number; tokenUsage?: TokenUsage }`
 
 ### Story Services
-Both `StoryService` and `CustomStoryService` pass through the TTFS data from the AI service to the story segments.
+Both `StoryService` and `CustomStoryService` pass through all metrics from the AI service to the story segments.
 
 ## Benefits
 
-1. **Performance Monitoring**: Track how responsive your AI model is
-2. **Model Comparison**: Compare TTFS between different models or configurations
-3. **Optimization**: Identify when your AI service might be experiencing latency issues
-4. **User Experience**: Understand the actual response times users experience
+### Performance Monitoring
+- Track AI model responsiveness with TTFS measurements
+- Monitor token consumption patterns
+- Identify performance bottlenecks
+
+### Cost Optimization
+- Track token usage to understand API costs
+- Compare efficiency between different models
+- Optimize prompts based on token consumption
+
+### User Experience
+- Understand actual response times users experience
+- Monitor for performance degradation
+- Make informed decisions about model selection
 
 ## Notes
 
+### TTFS Limitations
 - TTFS is only measured for streaming requests
 - Non-streaming requests do not include TTFS measurements
 - TTFS includes network latency and AI model processing time
 - The measurement is client-side and reflects the user's actual experience
+
+### Token Usage
+- Token usage is tracked for both streaming and non-streaming requests
+- Supports OpenAI and Anthropic API response formats
+- Token counts are extracted directly from API responses when available
+- Fallback handling for APIs that don't provide usage data

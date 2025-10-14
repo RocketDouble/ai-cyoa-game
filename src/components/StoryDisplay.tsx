@@ -218,11 +218,16 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({
               return (
                 <div key={segment.id} className="border-l-2 border-gray-300 dark:border-gray-600 pl-4">
                   <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <div className="text-xs text-gray-500 dark:text-gray-400">Segment {index + 1}</div>
                       {segment.ttfs !== undefined && (
                         <div className={`text-xs font-mono px-2 py-0.5 rounded ${TTFSFormatter.getTTFSColorClass(segment.ttfs)}`}>
                           TTFS: {TTFSFormatter.formatTTFS(segment.ttfs)}
+                        </div>
+                      )}
+                      {segment.tokenUsage && (
+                        <div className={`text-xs font-mono px-2 py-0.5 rounded ${TTFSFormatter.getTokenColorClass(segment.tokenUsage.outputTokens)}`}>
+                          Tokens: {TTFSFormatter.formatTokenUsage(segment.tokenUsage)}
                         </div>
                       )}
                     </div>
@@ -323,11 +328,18 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({
                   </div>
                 </div>
               )}
-              {currentStory.ttfs !== undefined && (
-                <div className={`text-xs font-mono px-2 py-1 rounded ${TTFSFormatter.getTTFSColorClass(currentStory.ttfs)}`}>
-                  TTFS: {TTFSFormatter.formatTTFS(currentStory.ttfs)}
-                </div>
-              )}
+              <div className="flex items-center gap-2 flex-wrap">
+                {currentStory.ttfs !== undefined && (
+                  <div className={`text-xs font-mono px-2 py-1 rounded ${TTFSFormatter.getTTFSColorClass(currentStory.ttfs)}`}>
+                    TTFS: {TTFSFormatter.formatTTFS(currentStory.ttfs)}
+                  </div>
+                )}
+                {currentStory.tokenUsage && (
+                  <div className={`text-xs font-mono px-2 py-1 rounded ${TTFSFormatter.getTokenColorClass(currentStory.tokenUsage.outputTokens)}`}>
+                    Tokens: {TTFSFormatter.formatTokenUsage(currentStory.tokenUsage)}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

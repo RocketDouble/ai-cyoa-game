@@ -137,7 +137,7 @@ export class StoryService {
     onChunk: (text: string) => void,
     samplerSettings?: import('../types').SamplerSettings,
     onThinkingChunk?: (text: string) => void
-  ): Promise<StorySegment & { thinkingContent?: string }> {
+  ): Promise<StorySegment & { thinkingContent?: string; ttfs?: number; tokenUsage?: import('../types').TokenUsage }> {
     const includeScene = config.enableImageGeneration !== false;
     const messages = [
       AIService.createSystemMessage(StoryPrompts.STORY_SYSTEM_PROMPT),
@@ -145,14 +145,14 @@ export class StoryService {
     ];
 
     try {
-      const { response, thinkingContent, ttfs } = await AIService.chatCompletionStream(config, messages, onChunk, {
+      const { response, thinkingContent, ttfs, tokenUsage } = await AIService.chatCompletionStream(config, messages, onChunk, {
         temperature: samplerSettings?.temperature ?? 0.8,
         maxTokens: 2048,
         onThinkingChunk
       });
 
       const storySegment = this.parseStoryResponse(response, includeScene);
-      return { ...storySegment, thinkingContent, ttfs };
+      return { ...storySegment, thinkingContent, ttfs, tokenUsage };
     } catch (error) {
       if (error instanceof AIServiceError) {
         throw error;
@@ -175,12 +175,13 @@ export class StoryService {
     ];
 
     try {
-      const response = await AIService.chatCompletionWithRetry(config, messages, {
+      const { response, tokenUsage } = await AIService.chatCompletionWithRetry(config, messages, {
         temperature: samplerSettings?.temperature ?? 0.8,
         maxTokens: 2048
       });
 
-      return this.parseStoryResponse(response, includeScene);
+      const storySegment = this.parseStoryResponse(response, includeScene);
+      return { ...storySegment, tokenUsage };
     } catch (error) {
       if (error instanceof AIServiceError) {
         throw error;
@@ -202,7 +203,7 @@ export class StoryService {
     onChunk: (text: string) => void,
     samplerSettings?: import('../types').SamplerSettings,
     onThinkingChunk?: (text: string) => void
-  ): Promise<StorySegment & { thinkingContent?: string }> {
+  ): Promise<StorySegment & { thinkingContent?: string; ttfs?: number; tokenUsage?: import('../types').TokenUsage }> {
     const includeScene = config.enableImageGeneration !== false;
     const messages = [
       AIService.createSystemMessage(StoryPrompts.STORY_SYSTEM_PROMPT),
@@ -210,7 +211,7 @@ export class StoryService {
     ];
 
     try {
-      const { response, thinkingContent, ttfs } = await AIService.chatCompletionStream(config, messages, onChunk, {
+      const { response, thinkingContent, ttfs, tokenUsage } = await AIService.chatCompletionStream(config, messages, onChunk, {
         temperature: samplerSettings?.temperature ?? 0.8,
         maxTokens: 2048,
         onThinkingChunk
@@ -225,7 +226,7 @@ export class StoryService {
         storySegment.choices = choices;
       }
 
-      return { ...storySegment, thinkingContent, ttfs };
+      return { ...storySegment, thinkingContent, ttfs, tokenUsage };
     } catch (error) {
       if (error instanceof AIServiceError) {
         throw error;
@@ -253,7 +254,7 @@ export class StoryService {
     ];
 
     try {
-      const response = await AIService.chatCompletionWithRetry(config, messages, {
+      const { response, tokenUsage } = await AIService.chatCompletionWithRetry(config, messages, {
         temperature: samplerSettings?.temperature ?? 0.8,
         maxTokens: 2048
       });
@@ -267,7 +268,7 @@ export class StoryService {
         storySegment.choices = choices;
       }
 
-      return storySegment;
+      return { ...storySegment, tokenUsage };
     } catch (error) {
       if (error instanceof AIServiceError) {
         throw error;
@@ -294,7 +295,7 @@ export class StoryService {
     ];
 
     try {
-      const response = await AIService.chatCompletionWithRetry(config, messages, {
+      const { response } = await AIService.chatCompletionWithRetry(config, messages, {
         temperature: samplerSettings?.temperature ?? 0.7,
         maxTokens: 400
       });
@@ -620,7 +621,7 @@ export class StoryService {
     onChunk: (text: string) => void,
     samplerSettings?: import('../types').SamplerSettings,
     onThinkingChunk?: (text: string) => void
-  ): Promise<StorySegment & { thinkingContent?: string; ttfs?: number }> {
+  ): Promise<StorySegment & { thinkingContent?: string; ttfs?: number; tokenUsage?: import('../types').TokenUsage }> {
     // Use slightly higher temperature for regeneration to get different results
     const regenerationSettings: import('../types').SamplerSettings = {
       temperature: Math.min((samplerSettings?.temperature ?? 0.7) + 0.1, 1.0),
@@ -660,7 +661,7 @@ export class StoryService {
     onChunk: (text: string) => void,
     samplerSettings?: import('../types').SamplerSettings,
     onThinkingChunk?: (text: string) => void
-  ): Promise<StorySegment & { thinkingContent?: string; ttfs?: number }> {
+  ): Promise<StorySegment & { thinkingContent?: string; ttfs?: number; tokenUsage?: import('../types').TokenUsage }> {
     // Use slightly higher temperature for regeneration to get different results
     const regenerationSettings: import('../types').SamplerSettings = {
       temperature: Math.min((samplerSettings?.temperature ?? 0.7) + 0.1, 1.0),

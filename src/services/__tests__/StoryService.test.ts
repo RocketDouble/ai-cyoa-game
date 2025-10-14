@@ -43,7 +43,7 @@ describe('StoryService', () => {
 
 SCENE: A person standing at the edge of a dark, mysterious forest with towering ancient trees and a winding path disappearing into shadows`;
 
-      mockAIService.chatCompletionWithRetry.mockResolvedValueOnce(mockResponse);
+      mockAIService.chatCompletionWithRetry.mockResolvedValueOnce({ response: mockResponse });
 
       const result = await StoryService.generateInitialStory(mockConfig);
 
@@ -87,7 +87,7 @@ SCENE: A person standing at the edge of a dark, mysterious forest with towering 
 
     it('should handle malformed story response', async () => {
       const malformedResponse = 'This is not a properly formatted response';
-      mockAIService.chatCompletionWithRetry.mockResolvedValueOnce(malformedResponse);
+      mockAIService.chatCompletionWithRetry.mockResolvedValueOnce({ response: malformedResponse });
 
       const error = await StoryService.generateInitialStory(mockConfig)
         .catch(e => e);
@@ -98,7 +98,7 @@ SCENE: A person standing at the edge of a dark, mysterious forest with towering 
 
     it('should handle story response without scene description', async () => {
       const responseWithoutScene = 'STORY: A story without scene description that is long enough to pass validation checks and contains sufficient content for testing purposes';
-      mockAIService.chatCompletionWithRetry.mockResolvedValueOnce(responseWithoutScene);
+      mockAIService.chatCompletionWithRetry.mockResolvedValueOnce({ response: responseWithoutScene });
 
       const result = await StoryService.generateInitialStory(mockConfig);
 
@@ -107,7 +107,7 @@ SCENE: A person standing at the edge of a dark, mysterious forest with towering 
 
     it('should reject story that is too short', async () => {
       const shortResponse = 'STORY: Short\nSCENE: Scene';
-      mockAIService.chatCompletionWithRetry.mockResolvedValueOnce(shortResponse);
+      mockAIService.chatCompletionWithRetry.mockResolvedValueOnce({ response: shortResponse });
 
       const error = await StoryService.generateInitialStory(mockConfig)
         .catch(e => e);
@@ -153,8 +153,8 @@ SCENE: A person walking on a leaf-covered forest path with dappled sunlight`;
 4. Turn back while you still can`;
 
       mockAIService.chatCompletionWithRetry
-        .mockResolvedValueOnce(mockStoryResponse)
-        .mockResolvedValueOnce(mockChoicesResponse);
+        .mockResolvedValueOnce({ response: mockStoryResponse })
+        .mockResolvedValueOnce({ response: mockChoicesResponse });
 
       const result = await StoryService.continueStory(mockConfig, mockChoice, mockContext);
 
@@ -184,7 +184,7 @@ SCENE: A person walking on a leaf-covered forest path with dappled sunlight`;
     it('should handle AI service errors during choice generation', async () => {
       const mockStoryResponse = 'STORY: Story text that is long enough to pass validation\nSCENE: Scene description';
       mockAIService.chatCompletionWithRetry
-        .mockResolvedValueOnce(mockStoryResponse)
+        .mockResolvedValueOnce({ response: mockStoryResponse })
         .mockRejectedValueOnce(new AIServiceError('Choice generation failed', 'API_ERROR'));
 
       await expect(StoryService.continueStory(mockConfig, mockChoice, mockContext))
