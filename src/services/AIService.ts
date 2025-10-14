@@ -120,7 +120,7 @@ export class AIService {
       maxTokens?: number;
       onThinkingChunk?: (text: string) => void;
     } = {}
-  ): Promise<{ response: string; thinkingContent: string; ttfs?: number; tokenUsage?: import('../types').TokenUsage }> {
+  ): Promise<{ response: string; thinkingContent: string; ttfs?: number; tokenUsage?: import('../types').TokenUsage; modelName: string }> {
     const isAnthropic = this.isAnthropicAPI(config.baseUrl);
     const endpoint = isAnthropic ? '/v1/messages' : '/v1/chat/completions';
     const url = this.transformUrlForProxy(config.baseUrl, endpoint);
@@ -284,7 +284,8 @@ export class AIService {
         response: fullText, 
         thinkingContent,
         ttfs,
-        tokenUsage
+        tokenUsage,
+        modelName: config.model
       };
     } catch (error) {
       if (error instanceof AIServiceError) {
@@ -317,7 +318,7 @@ export class AIService {
       maxTokens?: number;
       stream?: boolean;
     } = {}
-  ): Promise<{ response: string; tokenUsage?: import('../types').TokenUsage }> {
+  ): Promise<{ response: string; tokenUsage?: import('../types').TokenUsage; modelName: string }> {
     const isAnthropic = this.isAnthropicAPI(config.baseUrl);
     const endpoint = isAnthropic ? '/v1/messages' : '/v1/chat/completions';
     const url = this.transformUrlForProxy(config.baseUrl, endpoint);
@@ -405,7 +406,7 @@ export class AIService {
       // If no token usage was provided by the API, estimate it
       const tokenUsage = apiTokenUsage || TokenEstimator.createEstimatedUsage(messages, cleanedResponse);
       
-      return { response: cleanedResponse, tokenUsage };
+      return { response: cleanedResponse, tokenUsage, modelName: config.model };
     } catch (error) {
       if (error instanceof AIServiceError) {
         throw error;
@@ -445,7 +446,7 @@ export class AIService {
       stream?: boolean;
       maxRetries?: number;
     } = {}
-  ): Promise<{ response: string; tokenUsage?: import('../types').TokenUsage }> {
+  ): Promise<{ response: string; tokenUsage?: import('../types').TokenUsage; modelName: string }> {
     const maxRetries = options.maxRetries ?? this.MAX_RETRIES;
     let lastError: AIServiceError;
 

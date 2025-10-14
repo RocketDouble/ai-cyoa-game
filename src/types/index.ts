@@ -27,6 +27,7 @@ export interface StorySegment {
   thinkingContent?: string; // AI's thinking process for this segment
   ttfs?: number; // Time to First Token in milliseconds
   tokenUsage?: TokenUsage; // Token usage for this segment
+  modelName?: string; // Name of the AI model used to generate this segment
 }
 
 export interface Choice {

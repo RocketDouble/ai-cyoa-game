@@ -137,7 +137,7 @@ export class StoryService {
     onChunk: (text: string) => void,
     samplerSettings?: import('../types').SamplerSettings,
     onThinkingChunk?: (text: string) => void
-  ): Promise<StorySegment & { thinkingContent?: string; ttfs?: number; tokenUsage?: import('../types').TokenUsage }> {
+  ): Promise<StorySegment & { thinkingContent?: string; ttfs?: number; tokenUsage?: import('../types').TokenUsage; modelName?: string }> {
     const includeScene = config.enableImageGeneration !== false;
     const messages = [
       AIService.createSystemMessage(StoryPrompts.STORY_SYSTEM_PROMPT),
@@ -145,14 +145,14 @@ export class StoryService {
     ];
 
     try {
-      const { response, thinkingContent, ttfs, tokenUsage } = await AIService.chatCompletionStream(config, messages, onChunk, {
+      const { response, thinkingContent, ttfs, tokenUsage, modelName } = await AIService.chatCompletionStream(config, messages, onChunk, {
         temperature: samplerSettings?.temperature ?? 0.8,
         maxTokens: 2048,
         onThinkingChunk
       });
 
       const storySegment = this.parseStoryResponse(response, includeScene);
-      return { ...storySegment, thinkingContent, ttfs, tokenUsage };
+      return { ...storySegment, thinkingContent, ttfs, tokenUsage, modelName };
     } catch (error) {
       if (error instanceof AIServiceError) {
         throw error;
@@ -175,13 +175,13 @@ export class StoryService {
     ];
 
     try {
-      const { response, tokenUsage } = await AIService.chatCompletionWithRetry(config, messages, {
+      const { response, tokenUsage, modelName } = await AIService.chatCompletionWithRetry(config, messages, {
         temperature: samplerSettings?.temperature ?? 0.8,
         maxTokens: 2048
       });
 
       const storySegment = this.parseStoryResponse(response, includeScene);
-      return { ...storySegment, tokenUsage };
+      return { ...storySegment, tokenUsage, modelName };
     } catch (error) {
       if (error instanceof AIServiceError) {
         throw error;
@@ -203,7 +203,7 @@ export class StoryService {
     onChunk: (text: string) => void,
     samplerSettings?: import('../types').SamplerSettings,
     onThinkingChunk?: (text: string) => void
-  ): Promise<StorySegment & { thinkingContent?: string; ttfs?: number; tokenUsage?: import('../types').TokenUsage }> {
+  ): Promise<StorySegment & { thinkingContent?: string; ttfs?: number; tokenUsage?: import('../types').TokenUsage; modelName?: string }> {
     const includeScene = config.enableImageGeneration !== false;
     const messages = [
       AIService.createSystemMessage(StoryPrompts.STORY_SYSTEM_PROMPT),
@@ -211,7 +211,7 @@ export class StoryService {
     ];
 
     try {
-      const { response, thinkingContent, ttfs, tokenUsage } = await AIService.chatCompletionStream(config, messages, onChunk, {
+      const { response, thinkingContent, ttfs, tokenUsage, modelName } = await AIService.chatCompletionStream(config, messages, onChunk, {
         temperature: samplerSettings?.temperature ?? 0.8,
         maxTokens: 2048,
         onThinkingChunk
@@ -226,7 +226,7 @@ export class StoryService {
         storySegment.choices = choices;
       }
 
-      return { ...storySegment, thinkingContent, ttfs, tokenUsage };
+      return { ...storySegment, thinkingContent, ttfs, tokenUsage, modelName };
     } catch (error) {
       if (error instanceof AIServiceError) {
         throw error;
@@ -254,7 +254,7 @@ export class StoryService {
     ];
 
     try {
-      const { response, tokenUsage } = await AIService.chatCompletionWithRetry(config, messages, {
+      const { response, tokenUsage, modelName } = await AIService.chatCompletionWithRetry(config, messages, {
         temperature: samplerSettings?.temperature ?? 0.8,
         maxTokens: 2048
       });
@@ -268,7 +268,7 @@ export class StoryService {
         storySegment.choices = choices;
       }
 
-      return { ...storySegment, tokenUsage };
+      return { ...storySegment, tokenUsage, modelName };
     } catch (error) {
       if (error instanceof AIServiceError) {
         throw error;

@@ -220,6 +220,11 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <div className="text-xs text-gray-500 dark:text-gray-400">Segment {index + 1}</div>
+                      {segment.modelName && (
+                        <div className="text-xs font-mono px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                          {segment.modelName}
+                        </div>
+                      )}
                       {segment.ttfs !== undefined && (
                         <div className={`text-xs font-mono px-2 py-0.5 rounded ${TTFSFormatter.getTTFSColorClass(segment.ttfs)}`}>
                           TTFS: {TTFSFormatter.formatTTFS(segment.ttfs)}
@@ -329,6 +334,11 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({
                 </div>
               )}
               <div className="flex items-center gap-2 flex-wrap">
+                {currentStory.modelName && (
+                  <div className="text-xs font-mono px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                    {currentStory.modelName}
+                  </div>
+                )}
                 {currentStory.ttfs !== undefined && (
                   <div className={`text-xs font-mono px-2 py-1 rounded ${TTFSFormatter.getTTFSColorClass(currentStory.ttfs)}`}>
                     TTFS: {TTFSFormatter.formatTTFS(currentStory.ttfs)}
