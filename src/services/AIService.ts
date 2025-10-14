@@ -274,8 +274,10 @@ export class AIService {
       const ttfs = firstTokenTime !== undefined ? firstTokenTime - startTime : undefined;
 
       // If no token usage was provided by the API, estimate it
+      // Use the cleaned response (without thinking content) for accurate token estimation
       if (!tokenUsage && fullText) {
-        tokenUsage = TokenEstimator.createEstimatedUsage(messages, fullText);
+        const { cleanedResponse } = ThinkingParser.parseThinkingResponse(fullText);
+        tokenUsage = TokenEstimator.createEstimatedUsage(messages, cleanedResponse);
       }
 
       return { 
