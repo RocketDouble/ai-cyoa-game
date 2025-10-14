@@ -20,6 +20,7 @@ export interface StorySegment {
   choices: Choice[];
   sceneDescription: string;
   thinkingContent?: string; // AI's thinking process for this segment
+  ttfs?: number; // Time to First Token in milliseconds
 }
 
 export interface Choice {

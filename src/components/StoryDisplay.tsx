@@ -4,6 +4,7 @@ import { SamplerSettings } from './SamplerSettings';
 import { ThinkingDisplay } from './ThinkingDisplay';
 
 import { MarkdownParser } from '../utils/MarkdownParser';
+import { TTFSFormatter } from '../utils/TTFSFormatter';
 import type { StorySegment, SamplerSettings as SamplerSettingsType } from '../types';
 
 interface StoryDisplayProps {
@@ -217,7 +218,14 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({
               return (
                 <div key={segment.id} className="border-l-2 border-gray-300 dark:border-gray-600 pl-4">
                   <div className="flex items-center justify-between mb-1">
-                    <div className="text-xs text-gray-500 dark:text-gray-400">Segment {index + 1}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Segment {index + 1}</div>
+                      {segment.ttfs !== undefined && (
+                        <div className={`text-xs font-mono px-2 py-0.5 rounded ${TTFSFormatter.getTTFSColorClass(segment.ttfs)}`}>
+                          TTFS: {TTFSFormatter.formatTTFS(segment.ttfs)}
+                        </div>
+                      )}
+                    </div>
                     {/* Only show rollback button if this is not the last segment (current segment) and onRollback is provided */}
                     {index < storyHistory.length - 1 && onRollback && (
                       <button
@@ -303,12 +311,23 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({
           </div>
         )}
 
-        {/* Scene Description (for context, not always displayed) */}
-        {currentStory?.sceneDescription && !isStreaming && (
+        {/* Scene Description and TTFS (for context, not always displayed) */}
+        {currentStory && !isStreaming && (
           <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Scene</div>
-            <div className="text-sm text-gray-600 dark:text-gray-400 italic">
-              {currentStory.sceneDescription}
+            <div className="flex items-center justify-between mb-2">
+              {currentStory.sceneDescription && (
+                <div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Scene</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400 italic">
+                    {currentStory.sceneDescription}
+                  </div>
+                </div>
+              )}
+              {currentStory.ttfs !== undefined && (
+                <div className={`text-xs font-mono px-2 py-1 rounded ${TTFSFormatter.getTTFSColorClass(currentStory.ttfs)}`}>
+                  TTFS: {TTFSFormatter.formatTTFS(currentStory.ttfs)}
+                </div>
+              )}
             </div>
           </div>
         )}

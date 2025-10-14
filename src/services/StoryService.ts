@@ -145,14 +145,14 @@ export class StoryService {
     ];
 
     try {
-      const { response, thinkingContent } = await AIService.chatCompletionStream(config, messages, onChunk, {
+      const { response, thinkingContent, ttfs } = await AIService.chatCompletionStream(config, messages, onChunk, {
         temperature: samplerSettings?.temperature ?? 0.8,
         maxTokens: 2048,
         onThinkingChunk
       });
 
       const storySegment = this.parseStoryResponse(response, includeScene);
-      return { ...storySegment, thinkingContent };
+      return { ...storySegment, thinkingContent, ttfs };
     } catch (error) {
       if (error instanceof AIServiceError) {
         throw error;
@@ -210,7 +210,7 @@ export class StoryService {
     ];
 
     try {
-      const { response, thinkingContent } = await AIService.chatCompletionStream(config, messages, onChunk, {
+      const { response, thinkingContent, ttfs } = await AIService.chatCompletionStream(config, messages, onChunk, {
         temperature: samplerSettings?.temperature ?? 0.8,
         maxTokens: 2048,
         onThinkingChunk
@@ -225,7 +225,7 @@ export class StoryService {
         storySegment.choices = choices;
       }
 
-      return { ...storySegment, thinkingContent };
+      return { ...storySegment, thinkingContent, ttfs };
     } catch (error) {
       if (error instanceof AIServiceError) {
         throw error;
@@ -620,7 +620,7 @@ export class StoryService {
     onChunk: (text: string) => void,
     samplerSettings?: import('../types').SamplerSettings,
     onThinkingChunk?: (text: string) => void
-  ): Promise<StorySegment & { thinkingContent?: string }> {
+  ): Promise<StorySegment & { thinkingContent?: string; ttfs?: number }> {
     // Use slightly higher temperature for regeneration to get different results
     const regenerationSettings: import('../types').SamplerSettings = {
       temperature: Math.min((samplerSettings?.temperature ?? 0.7) + 0.1, 1.0),
@@ -660,7 +660,7 @@ export class StoryService {
     onChunk: (text: string) => void,
     samplerSettings?: import('../types').SamplerSettings,
     onThinkingChunk?: (text: string) => void
-  ): Promise<StorySegment & { thinkingContent?: string }> {
+  ): Promise<StorySegment & { thinkingContent?: string; ttfs?: number }> {
     // Use slightly higher temperature for regeneration to get different results
     const regenerationSettings: import('../types').SamplerSettings = {
       temperature: Math.min((samplerSettings?.temperature ?? 0.7) + 0.1, 1.0),

@@ -119,7 +119,7 @@ export class AIService {
       maxTokens?: number;
       onThinkingChunk?: (text: string) => void;
     } = {}
-  ): Promise<{ response: string; thinkingContent: string }> {
+  ): Promise<{ response: string; thinkingContent: string; ttfs?: number }> {
     const isAnthropic = this.isAnthropicAPI(config.baseUrl);
     const endpoint = isAnthropic ? '/v1/messages' : '/v1/chat/completions';
     const url = this.transformUrlForProxy(config.baseUrl, endpoint);
@@ -154,6 +154,9 @@ export class AIService {
     }
 
     try {
+      const startTime = performance.now();
+      let firstTokenTime: number | undefined;
+
       const response = await fetch(url, {
         method: 'POST',
         headers,
@@ -212,6 +215,11 @@ export class AIService {
               }
 
               if (rawChunk) {
+                // Record TTFS on first content token
+                if (firstTokenTime === undefined) {
+                  firstTokenTime = performance.now();
+                }
+
                 fullText += rawChunk;
 
                 // Process chunk for thinking content
@@ -237,9 +245,13 @@ export class AIService {
       // Get final thinking content
       const { thinkingContent } = thinkingProcessor.getState();
 
+      // Calculate TTFS
+      const ttfs = firstTokenTime !== undefined ? firstTokenTime - startTime : undefined;
+
       return { 
         response: fullText, 
-        thinkingContent 
+        thinkingContent,
+        ttfs
       };
     } catch (error) {
       if (error instanceof AIServiceError) {
