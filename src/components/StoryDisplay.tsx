@@ -236,12 +236,12 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({
                         </div>
                       )}
                     </div>
-                    {/* Only show rollback button if this is not the last segment (current segment) and onRollback is provided */}
-                    {index < storyHistory.length - 1 && onRollback && (
+                    {/* Show rollback button for all segments in history if onRollback is provided */}
+                    {onRollback && (
                       <button
                         onClick={() => handleRollbackRequest(index)}
                         className="inline-flex items-center gap-1 px-2 py-1 text-xs text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-700 rounded hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors"
-                        title={`Rollback to this segment (will delete ${storyHistory.length - 1 - index} segments)`}
+                        title={`Rollback to this segment (will delete ${storyHistory.length - index} segments)`}
                       >
                         <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
