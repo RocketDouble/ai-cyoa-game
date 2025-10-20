@@ -53,6 +53,7 @@ export interface AIConfig {
   availableModels?: string[];
   samplerSettings?: SamplerSettings;
   enableImageGeneration?: boolean; // Toggle for image generation feature
+  enableReasoning?: boolean; // Toggle for reasoning/thinking content
   // Image generation configuration (optional - falls back to text config if not provided)
   imageConfig?: {
     provider: ImageProvider;

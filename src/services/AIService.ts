@@ -51,6 +51,13 @@ export class AIService {
     if (baseUrl.includes('api.openai.com')) {
       return `/api/openai${endpoint}`;
     }
+    // Use proxy for nano-gpt API to avoid CORS issues
+    if (baseUrl.includes('nano-gpt.com')) {
+      // Extract the path from the base URL and construct the proxy URL
+      const baseUrlObj = new URL(baseUrl);
+      const pathPart = baseUrlObj.pathname === '/' ? '' : baseUrlObj.pathname;
+      return `/api/nano-gpt${pathPart}${endpoint}`;
+    }
     
     // For other APIs (like local LM Studio), construct URL properly
     // Remove trailing slash from baseUrl
@@ -122,7 +129,17 @@ export class AIService {
     } = {}
   ): Promise<{ response: string; thinkingContent: string; ttfs?: number; tokenUsage?: import('../types').TokenUsage; modelName: string }> {
     const isAnthropic = this.isAnthropicAPI(config.baseUrl);
-    const endpoint = isAnthropic ? '/v1/messages' : '/v1/chat/completions';
+    const isNanoGpt = config.baseUrl.includes('nano-gpt.com');
+    
+    let endpoint: string;
+    if (isAnthropic) {
+      endpoint = '/v1/messages';
+    } else if (isNanoGpt) {
+      endpoint = '/chat/completions';
+    } else {
+      endpoint = '/v1/chat/completions';
+    }
+    
     const url = this.transformUrlForProxy(config.baseUrl, endpoint);
     const headers = this.getHeaders(config, config.baseUrl);
     headers['Accept'] = 'text/event-stream';
@@ -152,6 +169,16 @@ export class AIService {
         frequency_penalty: 0,
         presence_penalty: 0,
       };
+
+      // Add reasoning support for nano-gpt v1legacy endpoint
+      if (config.baseUrl.includes('nano-gpt.com') && config.baseUrl.includes('v1legacy')) {
+        // If reasoning is disabled, exclude it from the response
+        if (config.enableReasoning === false) {
+          requestBody.reasoning = { exclude: true };
+        }
+        // If reasoning is enabled (default), we don't need to add anything
+        // The API will include reasoning by default
+      }
     }
 
     try {
@@ -180,6 +207,9 @@ export class AIService {
 
       // Initialize thinking processor for handling thinking tags in streaming
       const thinkingProcessor = ThinkingParser.createStreamingProcessor();
+      
+      // Initialize reasoning accumulator for nano-gpt reasoning content
+      let accumulatedReasoning = '';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -216,11 +246,28 @@ export class AIService {
                   };
                 }
               } else {
-                // Handle OpenAI format
-                const content = data.choices?.[0]?.delta?.content;
+                // Handle OpenAI format and nano-gpt reasoning
+                const delta = data.choices?.[0]?.delta;
+                const content = delta?.content;
+                const reasoning = delta?.reasoning;
+                
                 if (content) {
                   rawChunk = content;
                 }
+                
+                // Handle nano-gpt reasoning field separately
+                if (reasoning) {
+                  // Record TTFS on first reasoning token (if no content token received yet)
+                  if (firstTokenTime === undefined) {
+                    firstTokenTime = performance.now();
+                  }
+                  
+                  accumulatedReasoning += reasoning;
+                  if (options.onThinkingChunk) {
+                    options.onThinkingChunk(reasoning);
+                  }
+                }
+                
                 // Extract usage data from OpenAI streaming response
                 // This can appear in the final chunk or in a separate usage chunk
                 if (data.usage) {
@@ -267,8 +314,9 @@ export class AIService {
         }
       }
 
-      // Get final thinking content
-      const { thinkingContent } = thinkingProcessor.getState();
+      // Get final thinking content (prioritize nano-gpt reasoning over traditional thinking tags)
+      const { thinkingContent: traditionalThinking } = thinkingProcessor.getState();
+      const finalThinkingContent = accumulatedReasoning || traditionalThinking;
 
       // Calculate TTFS
       const ttfs = firstTokenTime !== undefined ? firstTokenTime - startTime : undefined;
@@ -282,7 +330,7 @@ export class AIService {
 
       return { 
         response: fullText, 
-        thinkingContent,
+        thinkingContent: finalThinkingContent,
         ttfs,
         tokenUsage,
         modelName: config.model
@@ -320,7 +368,17 @@ export class AIService {
     } = {}
   ): Promise<{ response: string; tokenUsage?: import('../types').TokenUsage; modelName: string }> {
     const isAnthropic = this.isAnthropicAPI(config.baseUrl);
-    const endpoint = isAnthropic ? '/v1/messages' : '/v1/chat/completions';
+    const isNanoGpt = config.baseUrl.includes('nano-gpt.com');
+    
+    let endpoint: string;
+    if (isAnthropic) {
+      endpoint = '/v1/messages';
+    } else if (isNanoGpt) {
+      endpoint = '/chat/completions';
+    } else {
+      endpoint = '/v1/chat/completions';
+    }
+    
     const url = this.transformUrlForProxy(config.baseUrl, endpoint);
     const headers = this.getHeaders(config, config.baseUrl);
     headers['Accept'] = 'application/json';
@@ -353,6 +411,16 @@ export class AIService {
           ttl: "5m"
         }
       };
+
+      // Add reasoning support for nano-gpt v1legacy endpoint
+      if (config.baseUrl.includes('nano-gpt.com') && config.baseUrl.includes('v1legacy')) {
+        // If reasoning is disabled, exclude it from the response
+        if (config.enableReasoning === false) {
+          requestBody.reasoning = { exclude: true };
+        }
+        // If reasoning is enabled (default), we don't need to add anything
+        // The API will include reasoning by default
+      }
     }
 
     try {

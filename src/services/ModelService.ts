@@ -49,7 +49,7 @@ export class ModelService {
       ];
     }
 
-    // Use proxy for OpenAI API to avoid CORS issues
+    // Use proxy for various APIs to avoid CORS issues
     let url = `${config.baseUrl}/models`;
     const headers: Record<string, string> = {
       'Authorization': `Bearer ${config.apiKey}`,
@@ -58,6 +58,9 @@ export class ModelService {
 
     if (config.baseUrl.includes('api.openai.com')) {
       url = '/api/openai/v1/models';
+    } else if (config.baseUrl.includes('nano-gpt.com')) {
+      // For nano-gpt, always use the v1 models endpoint (v1legacy doesn't have models)
+      url = '/api/nano-gpt/api/v1/models';
     }
     
     try {

@@ -57,6 +57,42 @@ export default defineConfig({
             }
           });
         }
+      },
+      '/api/nano-gpt': {
+        target: 'https://nano-gpt.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/nano-gpt/, ''),
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            // Remove browser-specific headers that shouldn't be forwarded
+            const headersToRemove = [
+              'origin',
+              'referer',
+              'sec-fetch-site',
+              'sec-fetch-mode',
+              'sec-fetch-dest',
+              'sec-ch-ua',
+              'sec-ch-ua-mobile',
+              'sec-ch-ua-platform',
+              'host',
+              'connection'
+            ];
+            
+            headersToRemove.forEach(header => {
+              proxyReq.removeHeader(header);
+            });
+            
+            // Forward the Authorization header from the client request
+            const auth = req.headers['authorization'];
+            if (auth) {
+              proxyReq.setHeader('Authorization', Array.isArray(auth) ? auth[0] : auth);
+            }
+            
+            // Set required headers
+            proxyReq.setHeader('content-type', 'application/json');
+            proxyReq.setHeader('host', 'nano-gpt.com');
+          });
+        }
       }
     }
   }

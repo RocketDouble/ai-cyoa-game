@@ -227,7 +227,7 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({
                       )}
                       {segment.ttfs !== undefined && (
                         <div className={`text-xs font-mono px-2 py-0.5 rounded ${TTFSFormatter.getTTFSColorClass(segment.ttfs)}`}>
-                          TTFS: {TTFSFormatter.formatTTFS(segment.ttfs)}
+                          TTFT: {TTFSFormatter.formatTTFS(segment.ttfs)}
                         </div>
                       )}
                       {segment.tokenUsage && (
@@ -279,13 +279,18 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({
       )}
 
       {/* Thinking Display */}
-      {((thinkingContent && thinkingContent.trim()) || (streamingThinking && streamingThinking.trim())) && (
-        <ThinkingDisplay 
-          thinkingContent={isStreaming ? streamingThinking : (currentStory?.thinkingContent || thinkingContent)} 
-          className="mb-4"
-          isStreaming={isStreaming && !!streamingThinking}
-        />
-      )}
+      {(() => {
+        const displayThinkingContent = isStreaming ? streamingThinking : (currentStory?.thinkingContent || thinkingContent);
+        const hasThinkingContent = displayThinkingContent && displayThinkingContent.trim();
+
+        return hasThinkingContent ? (
+          <ThinkingDisplay
+            thinkingContent={displayThinkingContent}
+            className="mb-4"
+            isStreaming={isStreaming && !!streamingThinking}
+          />
+        ) : null;
+      })()}
 
       {/* Current Story Display */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 sm:p-6">
@@ -301,7 +306,7 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({
             </div>
           </div>
         )}
-        
+
         {/* Story Text */}
         {(streamingText || currentStory) && (
           <div className="prose prose-sm sm:prose-lg max-w-none">
@@ -341,7 +346,7 @@ export const StoryDisplay: React.FC<StoryDisplayProps> = ({
                 )}
                 {currentStory.ttfs !== undefined && (
                   <div className={`text-xs font-mono px-2 py-1 rounded ${TTFSFormatter.getTTFSColorClass(currentStory.ttfs)}`}>
-                    TTFS: {TTFSFormatter.formatTTFS(currentStory.ttfs)}
+                    TTFT: {TTFSFormatter.formatTTFS(currentStory.ttfs)}
                   </div>
                 )}
                 {currentStory.tokenUsage && (

@@ -14,6 +14,8 @@ interface FormState {
   apiKey: string;
   baseUrl: string;
   model: string;
+  // Reasoning toggle
+  enableReasoning: boolean;
   // Image generation toggle
   enableImageGeneration: boolean;
   // Image configuration
@@ -49,6 +51,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     apiKey: config?.apiKey || '',
     baseUrl: config?.baseUrl || 'https://api.openai.com/v1',
     model: config?.model || 'gpt-3.5-turbo',
+    enableReasoning: config?.enableReasoning ?? true,
     enableImageGeneration: config?.enableImageGeneration ?? true,
     enableImageConfig: !!config?.imageConfig,
     imageProvider: config?.imageConfig?.provider || 'openai',
@@ -357,6 +360,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         apiKey: formState.apiKey,
         baseUrl: formState.baseUrl,
         model: formState.model,
+        enableReasoning: formState.enableReasoning,
         enableImageGeneration: formState.enableImageGeneration,
         samplerSettings: config?.samplerSettings // Include sampler settings in sanitization
       };
@@ -378,6 +382,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         baseUrl: sanitizedConfig.baseUrl!,
         model: sanitizedConfig.model!,
         availableModels: availableModels.map(m => m.id),
+        enableReasoning: formState.enableReasoning,
         enableImageGeneration: sanitizedConfig.enableImageGeneration,
         imageConfig: sanitizedConfig.imageConfig,
         samplerSettings: sanitizedConfig.samplerSettings // Use sanitized sampler settings
@@ -536,6 +541,26 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               ? 'Test connection first to load available models'
               : `Choose from ${availableModels.length} available text generation models`
             }
+          </p>
+        </div>
+
+        {/* Reasoning Toggle */}
+        <div className="border-t dark:border-gray-700 pt-6">
+          <div className="flex items-center gap-3 mb-2">
+            <input
+              id="enableReasoning"
+              type="checkbox"
+              checked={formState.enableReasoning}
+              onChange={(e) => handleFieldChange('enableReasoning', e.target.checked)}
+              className="w-4 h-4 text-blue-600 bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500"
+            />
+            <label htmlFor="enableReasoning" className="text-lg font-medium text-gray-900 dark:text-gray-100">
+              Show AI Reasoning
+            </label>
+          </div>
+
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            Display the AI's thinking process and reasoning. When disabled, only the final response is shown for cleaner output.
           </p>
         </div>
 

@@ -75,6 +75,38 @@ export class ThinkingParser {
   }
 
   /**
+   * Create a streaming processor for nano-gpt reasoning content
+   * This handles reasoning content that comes in the reasoning field
+   */
+  static createReasoningProcessor() {
+    let reasoningContent = '';
+
+    return {
+      processReasoningChunk: (chunk: string): {
+        thinkingChunk: string;
+        fullThinkingContent: string;
+      } => {
+        reasoningContent += chunk;
+        
+        return {
+          thinkingChunk: chunk,
+          fullThinkingContent: reasoningContent
+        };
+      },
+
+      getState: () => ({
+        thinkingContent: reasoningContent,
+        isInThinkingBlock: false,
+        thinkingComplete: false
+      }),
+
+      reset: () => {
+        reasoningContent = '';
+      }
+    };
+  }
+
+  /**
    * Process streaming chunks to handle thinking content
    * This maintains state across chunks to properly handle thinking tags that span multiple chunks
    */
