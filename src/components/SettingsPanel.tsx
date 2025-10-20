@@ -555,12 +555,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               className="w-4 h-4 text-blue-600 bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500"
             />
             <label htmlFor="enableReasoning" className="text-lg font-medium text-gray-900 dark:text-gray-100">
-              Show AI Reasoning
+              Request AI Reasoning
             </label>
           </div>
 
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            Display the AI's thinking process and reasoning. When disabled, only the final response is shown for cleaner output.
+            Request the AI to show its thinking process and reasoning. When disabled, the AI provides only the final response for faster generation.
           </p>
         </div>
 

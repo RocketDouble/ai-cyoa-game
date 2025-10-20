@@ -170,14 +170,15 @@ export class AIService {
         presence_penalty: 0,
       };
 
-      // Add reasoning support for nano-gpt v1legacy endpoint
-      if (config.baseUrl.includes('nano-gpt.com') && config.baseUrl.includes('v1legacy')) {
-        // If reasoning is disabled, exclude it from the response
-        if (config.enableReasoning === false) {
+      // Add reasoning support for nano-gpt endpoints
+      if (config.baseUrl.includes('nano-gpt.com')) {
+        if (config.enableReasoning === true) {
+          // Explicitly request reasoning when enabled
+          requestBody.reasoning = {};
+        } else {
+          // Exclude reasoning when disabled (default behavior)
           requestBody.reasoning = { exclude: true };
         }
-        // If reasoning is enabled (default), we don't need to add anything
-        // The API will include reasoning by default
       }
     }
 
@@ -412,14 +413,15 @@ export class AIService {
         }
       };
 
-      // Add reasoning support for nano-gpt v1legacy endpoint
-      if (config.baseUrl.includes('nano-gpt.com') && config.baseUrl.includes('v1legacy')) {
-        // If reasoning is disabled, exclude it from the response
-        if (config.enableReasoning === false) {
+      // Add reasoning support for nano-gpt endpoints
+      if (config.baseUrl.includes('nano-gpt.com')) {
+        if (config.enableReasoning === true) {
+          // Explicitly request reasoning when enabled
+          requestBody.reasoning = {};
+        } else {
+          // Exclude reasoning when disabled (default behavior)
           requestBody.reasoning = { exclude: true };
         }
-        // If reasoning is enabled (default), we don't need to add anything
-        // The API will include reasoning by default
       }
     }
 
