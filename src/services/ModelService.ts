@@ -58,9 +58,6 @@ export class ModelService {
 
     if (config.baseUrl.includes('api.openai.com')) {
       url = '/api/openai/v1/models';
-    } else if (config.baseUrl.includes('nano-gpt.com')) {
-      // For nano-gpt, always use the v1 models endpoint (v1legacy doesn't have models)
-      url = '/api/nano-gpt/api/v1/models';
     }
     
     try {

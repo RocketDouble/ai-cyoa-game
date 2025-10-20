@@ -51,13 +51,6 @@ export class AIService {
     if (baseUrl.includes('api.openai.com')) {
       return `/api/openai${endpoint}`;
     }
-    // Use proxy for nano-gpt API to avoid CORS issues
-    if (baseUrl.includes('nano-gpt.com')) {
-      // Extract the path from the base URL and construct the proxy URL
-      const baseUrlObj = new URL(baseUrl);
-      const pathPart = baseUrlObj.pathname === '/' ? '' : baseUrlObj.pathname;
-      return `/api/nano-gpt${pathPart}${endpoint}`;
-    }
     
     // For other APIs (like local LM Studio), construct URL properly
     // Remove trailing slash from baseUrl
