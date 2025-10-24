@@ -78,8 +78,25 @@ IMPORTANT: The STORY section must contain ONLY narrative text. Do not include an
       context.storyHistory,
       context.choiceHistory,
       context.currentScene,
-      5500 // Leave room for system prompt, user choice, and response
+      28000 // Leave room for system prompt, user choice, and response (32k - 4k buffer)
     );
+
+    // Debug logging for context building (only in development)
+    if (process.env.NODE_ENV === 'development') {
+      const debug = TokenManager.debugContextBuilding(
+        context.storyHistory,
+        context.choiceHistory,
+        context.currentScene,
+        28000
+      );
+      console.log('📚 Context Debug:', {
+        totalSegments: debug.totalSegments,
+        totalChoices: debug.totalChoices,
+        included: `${debug.segmentsIncluded}/${debug.totalSegments} segments, ${debug.choicesIncluded}/${debug.totalChoices} choices`,
+        tokenUsage: `${debug.contextTokens}/${debug.maxTokens} tokens (${debug.utilizationPercent}%)`,
+        truncated: debug.truncationOccurred
+      });
+    }
 
     const sceneRequirement = includeScene ? '\n- Include a scene description for image generation' : '\n- Do NOT include any scene descriptions or SCENE: sections';
     const sceneFormat = includeScene ? '\nSCENE: [Brief visual description of the new scene for image generation]' : '';

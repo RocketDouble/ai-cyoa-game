@@ -2,13 +2,13 @@ import type { StorySegment, Choice } from '../types';
 
 /**
  * Token management utilities for AI context truncation
- * Ensures we stay within the 8192 token limit while maximizing context
+ * Ensures we stay within the 32k token limit while maximizing context
  */
 export class TokenManager {
   // Rough token estimation: ~4 characters per token for English text
   private static readonly CHARS_PER_TOKEN = 4;
-  private static readonly MAX_TOKENS = 8192;
-  private static readonly RESERVED_TOKENS = 1000; // Reserve for system prompt, response, etc.
+  private static readonly MAX_TOKENS = 32768; // 32k tokens
+  private static readonly RESERVED_TOKENS = 2000; // Reserve for system prompt, response, etc.
   private static readonly MAX_CONTEXT_TOKENS = TokenManager.MAX_TOKENS - TokenManager.RESERVED_TOKENS;
 
   /**
@@ -65,10 +65,8 @@ export class TokenManager {
       // Add segment if available
       if (i < reversedSegments.length) {
         const segment = reversedSegments[i];
-        const truncatedText = segment.text.length > 300 
-          ? segment.text.substring(0, 300) + '...' 
-          : segment.text;
-        segmentText = `Story ${segments.length - i}: ${truncatedText}\n`;
+        // Don't pre-truncate segments - let the token budget decide
+        segmentText = `Story ${segments.length - i}: ${segment.text}\n`;
       }
 
       // Add corresponding choice if available
@@ -82,6 +80,33 @@ export class TokenManager {
 
       // Check if adding this would exceed limit
       if (currentTokens + combinedTokens > maxTokens) {
+        // Try to fit a truncated version of the segment if we have some room left
+        const remainingTokens = maxTokens - currentTokens;
+        if (remainingTokens > 50 && segmentText) { // Only if we have meaningful space left
+          const segment = reversedSegments[i];
+          
+          // Calculate space for choice text if present
+          const choiceTokens = choiceText ? this.estimateTokens(choiceText) : 0;
+          const segmentBudget = remainingTokens - choiceTokens;
+          
+          if (segmentBudget > 20) { // Minimum viable segment size
+            const segmentChars = segmentBudget * this.CHARS_PER_TOKEN;
+            const truncatedSegmentText = segment.text.length > segmentChars 
+              ? segment.text.substring(0, segmentChars) + '...' 
+              : segment.text;
+            
+            const finalSegmentText = `Story ${segments.length - i}: ${truncatedSegmentText}\n`;
+            const finalCombinedText = finalSegmentText + choiceText;
+            const finalTokens = this.estimateTokens(finalCombinedText);
+            
+            if (currentTokens + finalTokens <= maxTokens) {
+              contextText = finalCombinedText + contextText;
+              currentTokens += finalTokens;
+              if (finalSegmentText) segmentsIncluded++;
+              if (choiceText) choicesIncluded++;
+            }
+          }
+        }
         break;
       }
 
@@ -115,12 +140,10 @@ export class TokenManager {
     let previousSegment: string | null = null;
     let previousAction: string | null = null;
 
-    // Always include the most recent segment and action if available
+    // Get the most recent segment and action if available (without pre-truncating)
     if (segments.length > 0) {
       const lastSegment = segments[segments.length - 1];
-      previousSegment = lastSegment.text.length > 500 
-        ? lastSegment.text.substring(0, 500) + '...'
-        : lastSegment.text;
+      previousSegment = lastSegment.text;
     }
 
     if (choices.length > 0) {
@@ -128,16 +151,41 @@ export class TokenManager {
       previousAction = lastChoice.text;
     }
 
-    // Calculate tokens used by immediate context
-    const immediateContextTokens = this.estimateTokens(`Previous segment: ${previousSegment || ''}\nPrevious action: ${previousAction || ''}\nCurrent scene: ${currentScene}`);
+    // Calculate base tokens for the template structure (without content)
+    const templateTokens = this.estimateTokens(`Previous segment: \nPrevious action: \nCurrent scene: ${currentScene}`);
+    
+    // Calculate tokens for the action (usually small)
+    const actionTokens = previousAction ? this.estimateTokens(previousAction) : 0;
+    
+    // Reserve tokens for immediate context structure
+    const reservedTokens = templateTokens + actionTokens + 100; // 100 token buffer
+    
+    // Calculate how much space we have for the previous segment and historical context
+    const availableTokens = maxTokens - reservedTokens;
+    
+    // Allocate tokens: prioritize recent segment, but leave room for historical context
+    const minHistoricalTokens = Math.min(1000, availableTokens * 0.3); // At least 30% for history
+    const maxSegmentTokens = availableTokens - minHistoricalTokens;
+    
+    // Truncate previous segment if needed
+    if (previousSegment) {
+      const segmentTokens = this.estimateTokens(previousSegment);
+      if (segmentTokens > maxSegmentTokens) {
+        const maxChars = maxSegmentTokens * this.CHARS_PER_TOKEN;
+        previousSegment = previousSegment.substring(0, maxChars) + '...';
+      }
+    }
 
-    // Build the rest of the context
-    const remainingTokens = maxTokens - immediateContextTokens;
+    // Calculate actual tokens used by immediate context
+    const actualImmediateTokens = this.estimateTokens(`Previous segment: ${previousSegment || ''}\nPrevious action: ${previousAction || ''}\nCurrent scene: ${currentScene}`);
+
+    // Build the rest of the context with remaining tokens
+    const remainingTokens = maxTokens - actualImmediateTokens;
 
     const { contextText, segmentsIncluded, choicesIncluded } = this.buildTruncatedContext(
       segments.slice(0, -1), // Exclude the last segment since we're handling it separately
       choices.slice(0, -1),   // Exclude the last choice since we're handling it separately
-      remainingTokens
+      Math.max(0, remainingTokens) // Ensure we don't pass negative tokens
     );
 
     return {
@@ -181,6 +229,40 @@ export class TokenManager {
       maxTokens: this.MAX_CONTEXT_TOKENS,
       remainingTokens: Math.max(0, remainingTokens),
       utilizationPercent
+    };
+  }
+
+  /**
+   * Debug context building to help identify truncation issues
+   */
+  static debugContextBuilding(
+    segments: StorySegment[],
+    choices: Choice[],
+    currentScene: string,
+    maxTokens: number = this.MAX_CONTEXT_TOKENS
+  ): {
+    totalSegments: number;
+    totalChoices: number;
+    segmentsIncluded: number;
+    choicesIncluded: number;
+    contextTokens: number;
+    maxTokens: number;
+    utilizationPercent: number;
+    truncationOccurred: boolean;
+  } {
+    const result = this.buildEnhancedContext(segments, choices, currentScene, maxTokens);
+    const fullContextText = `${result.contextText}Previous segment: ${result.previousSegment || ''}\nPrevious action: ${result.previousAction || ''}\nCurrent scene: ${currentScene}`;
+    const contextTokens = this.estimateTokens(fullContextText);
+    
+    return {
+      totalSegments: segments.length,
+      totalChoices: choices.length,
+      segmentsIncluded: result.segmentsIncluded,
+      choicesIncluded: result.choicesIncluded,
+      contextTokens,
+      maxTokens,
+      utilizationPercent: Math.round((contextTokens / maxTokens) * 100),
+      truncationOccurred: result.segmentsIncluded < segments.length || result.choicesIncluded < choices.length
     };
   }
 }
