@@ -81,23 +81,6 @@ IMPORTANT: The STORY section must contain ONLY narrative text. Do not include an
       28000 // Leave room for system prompt, user choice, and response (32k - 4k buffer)
     );
 
-    // Debug logging for context building (only in development)
-    if (process.env.NODE_ENV === 'development') {
-      const debug = TokenManager.debugContextBuilding(
-        context.storyHistory,
-        context.choiceHistory,
-        context.currentScene,
-        28000
-      );
-      console.log('📚 Context Debug:', {
-        totalSegments: debug.totalSegments,
-        totalChoices: debug.totalChoices,
-        included: `${debug.segmentsIncluded}/${debug.totalSegments} segments, ${debug.choicesIncluded}/${debug.totalChoices} choices`,
-        tokenUsage: `${debug.contextTokens}/${debug.maxTokens} tokens (${debug.utilizationPercent}%)`,
-        truncated: debug.truncationOccurred
-      });
-    }
-
     const sceneRequirement = includeScene ? '\n- Include a scene description for image generation' : '\n- Do NOT include any scene descriptions or SCENE: sections';
     const sceneFormat = includeScene ? '\nSCENE: [Brief visual description of the new scene for image generation]' : '';
     const sceneInstruction = includeScene ? '' : '\n\nIMPORTANT: Do NOT include a SCENE section in your response. Only provide STORY and CHOICES sections.';
@@ -112,11 +95,12 @@ Current scene: ${context.currentScene}
 STORY HISTORY (${segmentsIncluded} segments, ${choicesIncluded} actions included):
 ${contextText}
 
-Requirements:
-- Show the consequences of the player's choice
+REQUIREMENTS:
+THE PLAYER DOES NOT ALWAYS NEED TO HAVE CONSEQUENCES
+- Show the consequences of the player's choice if it MAKES SENSE
 - Advance the story meaningfully from the previous segment
 - Maintain consistency with previous events and the established narrative
-- Create a new situation requiring a decision${sceneRequirement}
+YOU DO NOT HAVE TO CREATE A NEW SCENE FOR THE PLAYER TO DECIDE, LET IT FLOW NATURALLY${sceneRequirement}
 
 Format your response as:
 STORY: [The narrative text showing consequences and new developments - NO choices, NO "Do you:" text]${sceneFormat}
