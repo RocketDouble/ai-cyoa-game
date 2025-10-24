@@ -1,6 +1,7 @@
 import { AIService, AIServiceError } from './AIService';
 import { TokenManager } from '../utils/TokenManager';
 import { ThinkingParser } from '../utils/ThinkingParser';
+import { ThemeService } from './ThemeService';
 import type { AIConfig, StorySegment, Choice, StoryContext } from '../types';
 
 /**
@@ -29,12 +30,13 @@ Guidelines:
   /**
    * Generate initial story prompt
    */
-  static generateInitialStoryPrompt(includeScene: boolean = true): string {
+  static generateInitialStoryPrompt(includeScene: boolean = true, theme?: string): string {
     const sceneRequirement = includeScene ? '\n- Include a brief scene description for potential image generation' : '\n- Do NOT include any scene descriptions or SCENE: sections';
     const sceneFormat = includeScene ? '\nSCENE: [Brief visual description of the current scene for image generation]' : '';
     const sceneInstruction = includeScene ? '' : '\n\nIMPORTANT: Do NOT include a SCENE section in your response. Only provide STORY and CHOICES sections.';
     
-    const prompt = `Create the opening scene for a new Choose Your Own Adventure story. 
+    // Create base prompt
+    const basePrompt = `Create the opening scene for a new Choose Your Own Adventure story. 
 
 Requirements:
 - Set up an intriguing premise and setting
@@ -48,8 +50,17 @@ CHOICES: [3-4 numbered choices, each on a new line]
 
 IMPORTANT: The STORY section must contain ONLY narrative text. Do not include any choices, options, or "Do you:" prompts in the STORY section. Put all choices in the separate CHOICES section.${sceneInstruction}`;
 
+    // Inject theme if provided with error handling
+    let enhancedPrompt: string;
+    try {
+      enhancedPrompt = ThemeService.injectThemeIntoPrompt(basePrompt, theme);
+    } catch (error) {
+      console.warn('[StoryService] Theme injection failed, using base prompt:', error);
+      enhancedPrompt = basePrompt;
+    }
+
     // Ensure we don't exceed token limits
-    return TokenManager.truncateToTokenLimit(prompt);
+    return TokenManager.truncateToTokenLimit(enhancedPrompt);
   }
 
   /**
@@ -139,9 +150,13 @@ export class StoryService {
     onThinkingChunk?: (text: string) => void
   ): Promise<StorySegment & { thinkingContent?: string; ttfs?: number; tokenUsage?: import('../types').TokenUsage; modelName?: string }> {
     const includeScene = config.enableImageGeneration !== false;
+    
+    // Select random theme for story generation with comprehensive error handling
+    const selectedTheme = await this.safeThemeSelection();
+    
     const messages = [
       AIService.createSystemMessage(StoryPrompts.STORY_SYSTEM_PROMPT),
-      AIService.createUserMessage(StoryPrompts.generateInitialStoryPrompt(includeScene))
+      AIService.createUserMessage(StoryPrompts.generateInitialStoryPrompt(includeScene, selectedTheme || undefined))
     ];
 
     try {
@@ -169,9 +184,13 @@ export class StoryService {
    */
   static async generateInitialStory(config: AIConfig, samplerSettings?: import('../types').SamplerSettings): Promise<StorySegment> {
     const includeScene = config.enableImageGeneration !== false;
+    
+    // Select random theme for story generation with comprehensive error handling
+    const selectedTheme = await this.safeThemeSelection();
+    
     const messages = [
       AIService.createSystemMessage(StoryPrompts.STORY_SYSTEM_PROMPT),
-      AIService.createUserMessage(StoryPrompts.generateInitialStoryPrompt(includeScene))
+      AIService.createUserMessage(StoryPrompts.generateInitialStoryPrompt(includeScene, selectedTheme || undefined))
     ];
 
     try {
@@ -710,6 +729,72 @@ export class StoryService {
         ? error.message 
         : 'Unknown story generation error';
       return { success: false, error: message };
+    }
+  }
+
+  /**
+   * Safely selects a theme with comprehensive error handling and logging
+   * @returns Promise<string | null> Selected theme or null if theme system fails
+   */
+  private static async safeThemeSelection(): Promise<string | null> {
+    try {
+      // Directly select theme - the ThemeService already has comprehensive error handling
+      const selectedTheme = await ThemeService.selectRandomTheme();
+      
+      if (!selectedTheme) {
+        console.log('📖 Generating story without theme');
+      }
+      
+      return selectedTheme;
+    } catch (error) {
+      console.warn('[StoryService] Theme selection failed, continuing without theme:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Validates that story generation can proceed normally when theme system fails
+   * @param config AI configuration for testing
+   * @returns Promise<{success: boolean, error?: string, themeSystemWorking: boolean}>
+   */
+  static async validateGracefulDegradation(config: AIConfig): Promise<{
+    success: boolean;
+    error?: string;
+    themeSystemWorking: boolean;
+  }> {
+    try {
+      // First test if theme system is working
+      let themeSystemWorking = false;
+      try {
+        const healthCheck = await ThemeService.healthCheck();
+        themeSystemWorking = healthCheck.healthy;
+      } catch {
+        // Theme system not working, test fallback behavior
+        themeSystemWorking = false;
+      }
+
+      // Test story generation (should work regardless of theme system status)
+      const testStory = await this.generateInitialStory(config);
+      
+      if (!testStory.text || testStory.text.length < 50) {
+        return {
+          success: false,
+          error: 'Story generation failed even with theme system fallback',
+          themeSystemWorking
+        };
+      }
+      return {
+        success: true,
+        themeSystemWorking
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      // Graceful degradation test failed
+      return {
+        success: false,
+        error: `Graceful degradation failed: ${message}`,
+        themeSystemWorking: false
+      };
     }
   }
 }

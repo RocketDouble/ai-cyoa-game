@@ -101,3 +101,17 @@ export interface UserPreferences {
   fontSize?: 'small' | 'medium' | 'large';
   autoSave?: boolean;
 }
+
+// Theme system interfaces
+export interface Theme {
+  id: string;
+  name: string;
+  description?: string;
+  keywords?: string[];
+}
+
+export interface ThemeConfig {
+  version: string;
+  lastUpdated: string;
+  themes: Theme[];
+}

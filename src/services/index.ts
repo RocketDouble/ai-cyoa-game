@@ -12,3 +12,6 @@ export { StoryService } from './StoryService';
 
 // Custom story generation service for custom scenario mode
 export { CustomStoryService } from './CustomStoryService';
+
+// Theme service for random theme selection and injection
+export { ThemeService, ThemeServiceError } from './ThemeService';
